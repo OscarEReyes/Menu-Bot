@@ -1,0 +1,104 @@
+import bs4
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import time
+import copy
+
+from datetime import datetime
+
+def getDate(): #Get today's date
+	date = time.strftime("%Y-%m-%d")
+	return date
+def getDay():  #Get the week day
+	day = time.strftime("%A")
+	return day
+def findNumberOfMeals(day): #This helps deal with the fact that menus are different on weekends.
+	if day == 'Saturday' or 'Sunday':
+		numberOfMeals = 2
+	else: numberOfMeals = 3
+	return numberOfMeals
+def scrapeDecider(numberOfMeals,date): #Based on the day this decides what has to be scraped
+	if numberOfMeals == 2:
+		brunchMenu = scrapeMenu(1522,date)
+		dinnerMenu = scrapeMenu(1524,date)
+		createWeekendTextFile(brunchMenu,dinnerMenu)
+	else:
+		breakfast = scrapeMenu(1521,date)
+		lunch = scrapeMenu(1523,date)
+		dinner = scrapeMenu(1524,date)
+		createWeekTextFile(breakfast,lunch,dinner)
+def scrapeMenu(x): #The actaul scraping action
+	x = str(x) #Makes x a string to add. The code x is will determine the page.
+	res = requests.get('https://tamuk.campusdish.com/Commerce/Catalog/Menus.aspx?LocationId=6532'+'&PeriodId='+ x +'&MenuDate'+date)
+	res.raise_for_status()
+	soup = bs4.BeautifulSoup(res.text, 'html.parser')
+	elems = soup.select('#RenderMenuDetailsSection')
+	menuDict={}
+	foodList = []
+	for group in soup.select('.menu-details-station'):  #Looks for the classes with the class menu-details-station
+		category = group.find('h2').text #looks for the stations text.
+		food_items = group.select('.menu-details-station-item .menu-name a') #Hard to explain in words but anything this selects is stored in food_items in a list and each separate thing is a food item
+		for item in food_items: #For each item in the food list it appends its text element into a list
+			foodList.append(item.text)
+		copy_list = foodList[:]
+		menuDict[category] = copy_list  #Each category is stored in a dictionary with it's foodlist along with it.
+	return menuDict
+def createWeekendTextFile(brunchMenu,dinnerMenu):
+	textfile = open('menu.text','w')
+	textfile.write("Brunch\n\n")
+	for category,foodItems in brunchMenu.items():
+		textfile.write(category + '\n')
+		for item in foodItems:
+			textfile.write('\t' + item + '\n')
+	textfile.write("\nDinner\n\n")
+	for category,foodItems in dinnerMenu.items():
+		textfile.write(category + '\n')
+		for item in foodItems:
+			textfile.write('\t' + item + '\n')
+	textfile.close()
+def createWeekTextFile(breakfast,lunch,dinner):
+	textfile = open('menu.text','w')
+	textfile.write("Breakfast\n\n")
+	for category,foodItems in breakfast.items():
+		textfile.write(category + '\n')
+		for item in foodItems:
+			textfile.write('\t' + item + '\n')
+	textfile.write("\nLunch\n\n")
+	for category,foodItems in lunch.items():
+		textfile.write(category + '\n')
+		for item in foodItems:
+			textfile.write('\t' + lunch.item + '\n')
+	textfile.close()
+	textfile.write("\nDinner\n\n")
+	for category,foodItems in dinner.items():
+		textfile.write(category + '\n')
+		for item in foodItems:
+			textfile.write('\t' + item + '\n')
+	textfile.close()
+
+def createMessage():
+	with open('menu.text') as fp:
+	    # Create a text/plain message
+	    msg = MIMEText(fp.read())
+	return msg
+def sendEmail(msg):
+	me = 'tamukmenubot@yahoo.com'
+	you = 'o.scar_R@yahoo.com.mx'
+	msg['Subject'] = 'This is the menu for today'
+	msg['From'] = me
+	msg['To'] = you
+	conn = smtplib.SMTP('smtp.mail.yahoo.com',587)
+	conn.ehlo()
+	conn.starttls()
+	conn.login('tamukmenubot@yahoo.com', 'tamukmenurobot')
+	conn.send_message(msg)
+	conn.quit()
+
+date = getDate()
+day = getDay()
+numberOfMeals = findNumberOfMeals(day)
+scrapeDecider(numberOfMeals,date)
+msg = createMessage()
+sendEmail(msg)
