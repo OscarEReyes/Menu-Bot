@@ -4,16 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import time
-
 from datetime import datetime
-
-def get_date(): 
-	date = time.strftime("%Y-%m-%d")
-	return date
-
-def get_day():  
-	day = time.strftime("%A")
-	return day
 
 def find_number_of_meals(day):
 	if day == 'Saturday' or 'Sunday':
@@ -34,14 +25,15 @@ def scrapeDecider(numberOfMeals,date):
         
 def scrapeMenu(x): 
 	x = str(x)
+    menu_dict={}
+	foodList = []
     url = 'https://tamuk.campusdish.com/Commerce/Catalog/Menus.aspx?LocationId=6532'+'&PeriodId='+ x +'&MenuDate'+ date
 	res = requests.get(url)
 	res.raise_for_status()
     
 	soup = BS4(res.text, 'html.parser')
 	elems = soup.select('#RenderMenuDetailsSection')
-	menu_dict={}
-	foodList = []
+	
 	for group in soup.select('.menu-details-station'):  
 		category = group.find('h2').text 
 		food_items = group.select('.menu-details-station-item .menu-name a') 
@@ -89,8 +81,8 @@ def sendEmail(msg):
 	conn.send_message(msg)
 	conn.quit()
 
-date = get_date()
-day = get_day()
+date = time.strftime("%Y-%m-%d")
+day = time.strftime("%A")
 number_of_meals = find_number_of_meals(day)
 scrapeDecider(number_of_meals,date)
 msg = createMessage()
